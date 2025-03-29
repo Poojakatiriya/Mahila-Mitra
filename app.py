@@ -1,3 +1,4 @@
+import os
 from flask import Flask, request, jsonify
 from google.cloud import dialogflow_v2 as dialogflow
 from google.oauth2 import service_account
@@ -5,8 +6,12 @@ from google.cloud.dialogflow_v2.types import TextInput, QueryInput
 
 app = Flask(__name__)
 
-# Load credentials from the JSON key file
-credentials = service_account.Credentials.from_service_account_file("credentials.json")
+# Load credentials securely
+CREDENTIALS_PATH = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+if not CREDENTIALS_PATH:
+    raise FileNotFoundError("GOOGLE_APPLICATION_CREDENTIALS environment variable is not set.")
+
+credentials = service_account.Credentials.from_service_account_file(CREDENTIALS_PATH)
 
 # Dialogflow project details
 DIALOGFLOW_PROJECT_ID = "mahila-mitra-umby"  # Replace with actual project ID
