@@ -7,39 +7,44 @@ from google.cloud.dialogflow_v2.types import TextInput, QueryInput
 app = Flask(__name__)
 
 # Load credentials securely
-CREDENTIALS_PATH = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
-if not CREDENTIALS_PATH:
-    raise FileNotFoundError("GOOGLE_APPLICATION_CREDENTIALS environment variable is not set.")
+CREDENTIALS_PATH = os.getenv("GOOGLE_APPLICATION_CREDENTIALS", "secrets/credentials.json")
+
+if not os.path.exists(CREDENTIALS_PATH):
+    raise FileNotFoundError(f"Missing credentials file: {CREDENTIALS_PATH}. Ensure it's set in the environment.")
 
 credentials = service_account.Credentials.from_service_account_file(CREDENTIALS_PATH)
 
 # Dialogflow project details
-DIALOGFLOW_PROJECT_ID = "mahila-mitra-umby"  # Replace with actual project ID
+DIALOGFLOW_PROJECT_ID = "mahila-mitra-umby"  # Replace with your actual project ID
 
 # Function to communicate with Dialogflow
 def detect_intent(text):
-    session_client = dialogflow.SessionsClient(credentials=credentials)
-    session = f"projects/{DIALOGFLOW_PROJECT_ID}/agent/sessions/unique-session-id"
+    try:
+        session_client = dialogflow.SessionsClient(credentials=credentials)
+        session = f"projects/{DIALOGFLOW_PROJECT_ID}/agent/sessions/unique-session-id"
 
-    text_input = TextInput(text=text, language_code="en")
-    query_input = QueryInput(text=text_input)
+        text_input = TextInput(text=text, language_code="en")
+        query_input = QueryInput(text=text_input)
 
-    response = session_client.detect_intent(session=session, query_input=query_input)
-    return response.query_result.fulfillment_text
+        response = session_client.detect_intent(session=session, query_input=query_input)
+        return response.query_result.fulfillment_text
+
+    except Exception as e:
+        return f"Error communicating with Dialogflow: {str(e)}"
 
 # API endpoint for chatbot
 @app.route('/chat', methods=['POST'])
 def chat():
     try:
-        user_message = request.json.get("message", "")
+        user_message = request.json.get("message", "").strip()
         if not user_message:
             return jsonify({"error": "Message cannot be empty"}), 400
 
         bot_reply = detect_intent(user_message)
         return jsonify({"response": bot_reply})
-    
+
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": f"Server Error: {str(e)}"}), 500
 
 # Home route to check if Flask is running
 @app.route('/')
